@@ -6,6 +6,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
+    /* Hide scrollbars globally while allowing scroll */
+html, body {
+  /* Still scrollable */
+  overflow: auto;
+}
+
+/* For all scrollable elements */
+* {
+  -ms-overflow-style: none;      /* IE and old Edge */
+  scrollbar-width: none;         /* Firefox */
+}
+
+/* WebKit (Chrome, Safari, new Edge) */
+*::-webkit-scrollbar {
+  display: none;                 /* Hide scrollbar */
+}
     :root{
       --bg:#0b0e1f; --panel:#131734; --panel-2:#1a1f44; --text:#e9eefb; --muted:#a7b0c7;
       --border:#2a335c; --primary:#5aa2ff; --accent:#33d3a6; --warn:#ffd166; --danger:#ff6b6b;

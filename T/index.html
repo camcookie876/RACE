@@ -2,9 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Race Tracker</title>
+  <title>Race Tracker - Tracking for Race</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    /* Hide scrollbars globally while allowing scroll */
+html, body {
+  /* Still scrollable */
+  overflow: auto;
+}
+
+/* For all scrollable elements */
+* {
+  -ms-overflow-style: none;      /* IE and old Edge */
+  scrollbar-width: none;         /* Firefox */
+}
+
+/* WebKit (Chrome, Safari, new Edge) */
+*::-webkit-scrollbar {
+  display: none;                 /* Hide scrollbar */
+}
     body { margin:0; font-family: Inter, system-ui, sans-serif; background:#0b0e1f; color:#e9eefb; padding:20px; }
     h1 { font-size:20px; margin-bottom:10px; }
     label { display:block; margin:10px 0 4px; }

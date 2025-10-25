@@ -2,9 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Pro Race Timer — Control Center</title>
+  <title>NonPro Race Timer — Control Center</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+/* Hide scrollbars globally while allowing scroll */
+html, body {
+  /* Still scrollable */
+  overflow: auto;
+}
+
+/* For all scrollable elements */
+* {
+  -ms-overflow-style: none;      /* IE and old Edge */
+  scrollbar-width: none;         /* Firefox */
+}
+
+/* WebKit (Chrome, Safari, new Edge) */
+*::-webkit-scrollbar {
+  display: none;                 /* Hide scrollbar */
+}
     :root {
       --bg: #0b0e1f;
       --panel: #131734;
@@ -124,7 +140,7 @@
     <div class="nav">
       <div class="brand">
         <div class="brand-logo" aria-hidden="true"></div>
-        <div class="brand-title" id="brandTitle">Pro Race Timer — Control Center</div>
+        <div class="brand-title" id="brandTitle">NonPro Race Timer — Control Center</div>
       </div>
       <div class="tabs">
         <button class="tab active" data-tab="setup">Setup</button>
