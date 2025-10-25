@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Race Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { margin:0; font-family: Inter, system-ui, sans-serif; background:#0b0e1f; color:#e9eefb; padding:20px; }
+    h1 { font-size:20px; margin-bottom:10px; }
+    label { display:block; margin:10px 0 4px; }
+    input { padding:8px 10px; border-radius:8px; border:1px solid #2a335c; background:#121633; color:#e9eefb; width:100%; }
+    button { margin-top:12px; padding:10px 14px; border-radius:10px; border:1px solid #2a335c; background:#1b2450; color:#fff; font-weight:700; cursor:pointer; }
+    button:hover { background:#243066; }
+    .log { margin-top:20px; font-family: monospace; font-size:13px; background:#0b0f23; padding:10px; border-radius:8px; height:200px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <h1>Race Tracker</h1>
+  <p>Keep this page open during the race to share your live location.</p>
+
+  <label>Bib number</label>
+  <input id="bibInput" type="number" placeholder="Enter your bib" />
+
+  <button id="startBtn">Start sharing</button>
+  <button id="stopBtn" disabled>Stop</button>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    // --- Parse Supabase info from hash (#1=url|2=key|3=table|4=race-id)
+    const hash = location.hash.slice(1);
+    const parts = Object.fromEntries(hash.split("|").map(p => {
+      const [k,v] = p.split("="); return [k, v ? decodeURIComponent(v) : ""];
+    }));
+    const SB_URL = parts["1"], SB_KEY = parts["2"], TABLE = parts["3"] || "race_events", RACE_ID = parts["4"];
+
+    const logEl = document.getElementById("log");
+    function log(msg){ logEl.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + logEl.innerHTML; }
+
+    if (!SB_URL || !SB_KEY || !RACE_ID) {
+      document.body.innerHTML = "<p style='color:#ff9aa2'>Incorrect code — missing Supabase info.</p>";
+      throw new Error("Missing Supabase info");
+    }
+
+    function sbHeaders(){
+      return { "Content-Type":"application/json", "apikey":SB_KEY, "Authorization":"Bearer "+SB_KEY };
+    }
+
+    async function sendLocation(bib, coords){
+      const row = {
+        event_type:"location",
+        race_id:RACE_ID,
+        bib_number:bib,
+        lat:coords.latitude,
+        lon:coords.longitude,
+        accuracy:coords.accuracy,
+        created_at:new Date().toISOString()
+      };
+      try{
+        const res = await fetch(`${SB_URL}/rest/v1/${TABLE}`, {
+          method:"POST", headers:sbHeaders(), body:JSON.stringify(row)
+        });
+        if(!res.ok) throw new Error(res.status);
+        log(`Sent location: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)} (±${coords.accuracy}m)`);
+      }catch(e){ log("Send failed: "+e.message); }
+    }
+
+    let watchId = null;
+    document.getElementById("startBtn").onclick = () => {
+      const bib = parseInt(document.getElementById("bibInput").value||"0");
+      if(!bib){ alert("Enter bib number"); return; }
+      if(!navigator.geolocation){ alert("Geolocation not supported"); return; }
+      watchId = navigator.geolocation.watchPosition(
+        pos => sendLocation(bib, pos.coords),
+        err => log("GPS error: "+err.message),
+        { enableHighAccuracy:true, maximumAge:2000, timeout:8000 }
+      );
+      document.getElementById("startBtn").disabled = true;
+      document.getElementById("stopBtn").disabled = false;
+      log("Started sharing location for bib "+bib);
+    };
+    document.getElementById("stopBtn").onclick = () => {
+      if(watchId){ navigator.geolocation.clearWatch(watchId); watchId=null; }
+      document.getElementById("startBtn").disabled = false;
+      document.getElementById("stopBtn").disabled = true;
+      log("Stopped sharing location");
+    };
+  </script>
+</body>
+</html>

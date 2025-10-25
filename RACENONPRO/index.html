@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pro Race Timer — Control Center</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0b0e1f;
+      --panel: #131734;
+      --panel-2: #1a1f44;
+      --text: #e9eefb;
+      --muted: #a7b0c7;
+      --border: #2a335c;
+      --primary: #5aa2ff;
+      --accent: #33d3a6;
+      --warn: #ffd166;
+      --danger: #ff6b6b;
+      --chip: #212751;
+      --btn: #1b2450;
+      --btn-hover: #243066;
+      --shadow: rgba(0,0,0,0.35);
+      --success: #48c78c;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1400px 600px at 10% -10%, rgba(90,162,255,0.14), transparent 40%),
+        radial-gradient(900px 500px at 80% 10%, rgba(51,211,166,0.10), transparent 35%),
+        linear-gradient(180deg, #0b0e1f, #0a0d1e 50%, #090c1b);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      letter-spacing: 0.2px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    header {
+      position: sticky; top: 0; z-index: 1000;
+      background: linear-gradient(180deg, rgba(19,23,52,0.85), rgba(19,23,52,0.75));
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(6px);
+    }
+    .nav { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 16px; padding: 14px 18px; }
+    .brand { display: flex; gap: 14px; align-items: center; }
+    .brand-logo { width: 40px; height: 40px; border-radius: 12px; background: conic-gradient(from 180deg, #5aa2ff, #33d3a6, #ffd166, #ff6b6b, #5aa2ff); box-shadow: 0 0 0 2px #10142a inset, 0 8px 24px var(--shadow); position: relative; overflow: hidden; }
+    .brand-logo::after { content: ""; position: absolute; inset: 3px; border-radius: 9px; background: linear-gradient(135deg, rgba(255,255,255,0.16), transparent 60%); }
+    .brand-title { font-weight: 800; letter-spacing: 0.6px; font-size: 18px; }
+
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tab { padding: 8px 12px; border-radius: 10px; color: var(--muted); border: 1px solid transparent; background: transparent; cursor: pointer; transition: all .18s ease; }
+    .tab.active { color: var(--text); background: var(--panel); border-color: var(--border); box-shadow: 0 4px 16px var(--shadow); }
+
+    main.content { padding: 20px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+    .panel { grid-column: span 12; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 28px var(--shadow); }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(44,55,116,0.20), rgba(26,31,68,0.20)); }
+    .panel-title { font-weight: 800; font-size: 15px; letter-spacing: 0.5px; }
+    .panel-body { padding: 16px; }
+    .footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; color: var(--muted); border-top: 1px solid var(--border); background: linear-gradient(180deg, rgba(26,31,68,0.22), rgba(19,23,52,0.22)); }
+
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip { padding: 6px 10px; border-radius: 999px; background: var(--chip); color: var(--muted); border: 1px solid var(--border); font-size: 12px; }
+    .chip.success { color: #c8f7e0; background: #1b4637; border-color: #2b6a52; }
+    .chip.warn { color: #2d2300; background: #664b12; border-color: #8a6b1d; }
+    .chip.danger { color: #ffe9e9; background: #3b1620; border-color: #5b2432; }
+
+    .subgrid { display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); }
+    .span-12 { grid-column: span 12; }
+    .span-8 { grid-column: span 8; }
+    .span-6 { grid-column: span 6; }
+    .span-4 { grid-column: span 4; }
+    .span-3 { grid-column: span 3; }
+
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn { background: var(--btn); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; font-weight: 700; letter-spacing: 0.3px; cursor: pointer; transition: all .18s ease; box-shadow: 0 6px 18px var(--shadow); }
+    .btn:hover { background: var(--btn-hover); transform: translateY(-1px); }
+    .btn.primary { background: linear-gradient(180deg, #4c8dff, #2f6ddf); border-color: #2f6ddf; }
+    .btn.accent { background: linear-gradient(180deg, #34c8a0, #2bb58f); border-color: #2bb58f; }
+    .btn.warn { background: linear-gradient(180deg, #ffd166, #e0b24e); border-color: #e0b24e; color: #1b1b1b; }
+    .btn.danger { background: linear-gradient(180deg, #ff6b6b, #e24c5a); border-color: #e24c5a; }
+    .btn.ghost { background: transparent; border-color: var(--border); }
+    .btn.small { padding: 6px 10px; font-weight: 600; }
+
+    .label { color: var(--muted); font-size: 12px; letter-spacing: 0.4px; }
+    input[type="text"], input[type="number"], input[type="password"], select, textarea {
+      width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: #121633; color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(90,162,255,0.25); }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #1a2044; position: sticky; top: 0; z-index: 1; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: center; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .log { font-family: ui-monospace, Menlo, Consolas; background: #0b0f23; border: 1px solid var(--border); border-radius: 12px; padding: 12px; color: #9ec6ff; height: 160px; overflow: auto; }
+
+    .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,0.28); }
+    .overlay .badge { font-size: 42px; font-weight: 900; letter-spacing: 2px; color: #9fc1ff; text-shadow: 0 8px 30px rgba(76,141,255,0.45); }
+
+    .hidden { display: none !important; }
+
+    /* Toasts */
+    .toast { position: fixed; bottom: 16px; right: 16px; background: #1b2450; color:#e9eefb; padding: 10px 12px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.35); opacity: 0; transform: translateY(8px); pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateY(0); transition: opacity .3s ease, transform .3s ease; }
+
+    /* Status badges */
+    .status-badge { font-weight: 800; font-size: 16px; }
+    .status-running { color: #9ee7ff; }
+    .status-paused { color: #ffd166; }
+    .status-ended { color: #ff9aa2; }
+
+    /* Mobile */
+    @media (max-width: 1000px) { .grid { grid-template-columns: repeat(6, 1fr); } .span-8, .span-6, .span-4, .span-3 { grid-column: span 6; } }
+    @media (max-width: 640px) { .grid { grid-template-columns: repeat(1, 1fr); } .span-12, .span-8, .span-6, .span-4, .span-3 { grid-column: span 1; } .nav { grid-template-columns: 1fr; } .tabs { margin-top: 8px; } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="nav">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true"></div>
+        <div class="brand-title" id="brandTitle">Pro Race Timer — Control Center</div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="setup">Setup</button>
+        <button class="tab" data-tab="roster">Roster</button>
+        <button class="tab" data-tab="race">Race</button>
+        <button class="tab" data-tab="results">Results</button>
+        <button class="tab" data-tab="supabase">Supabase</button>
+        <button class="tab" data-tab="about">About</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="content">
+    <div class="grid">
+
+      <!-- Setup -->
+      <section class="panel span-12 tabpanel" id="tab-setup">
+        <div class="panel-header">
+          <div class="panel-title">Setup and configuration</div>
+          <div class="chips">
+            <div class="chip">Queue-first logging</div>
+            <div class="chip">Random start delay + sound</div>
+            <div class="chip">Local autosave</div>
+            <div class="chip success"><span id="raceStatusChip" class="status-badge">Idle</span></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="subgrid">
+            <div class="span-6">
+              <div class="label">Race name</div>
+              <input id="raceName" type="text" placeholder="e.g., Bow Autumn 5K" />
+            </div>
+            <div class="span-3">
+              <div class="label">Lap distance</div>
+              <div class="controls">
+                <input id="lapDistance" type="number" placeholder="400" />
+                <select id="lapUnits">
+                  <option value="m">meters</option>
+                  <option value="km">km</option>
+                  <option value="mi">miles</option>
+                </select>
+              </div>
+            </div>
+            <div class="span-3">
+              <div class="label">Total laps (optional)</div>
+              <input id="totalLaps" type="number" placeholder="Leave empty for open-ended" />
+            </div>
+
+            <div class="span-4">
+              <div class="label">Teams mode</div>
+              <div class="controls">
+                <button class="btn ghost" id="toggleTeamsBtn">Toggle teams</button>
+                <span id="teamsStatus" class="chip">Disabled</span>
+              </div>
+            </div>
+
+            <div class="span-4">
+              <div class="label">Start sound file (URL)</div>
+              <input id="startSoundUrl" type="text" placeholder="e.g., /sounds/start.wav" />
+            </div>
+
+            <div class="span-4">
+              <div class="label">Keyboard shortcuts</div>
+              <div class="chips">
+                <span class="chip">Space start/pause/resume</span>
+                <span class="chip">C add crossing</span>
+                <span class="chip">U undo</span>
+                <span class="chip danger">D disqualify selected</span>
+              </div>
+            </div>
+
+            <div class="span-12">
+              <div class="controls">
+                <button class="btn primary" id="startRaceBtn">Start race (random delay)</button>
+                <button class="btn warn hidden" id="pauseRaceBtn">Pause</button>
+                <button class="btn accent hidden" id="resumeRaceBtn">Resume</button>
+                <button class="btn danger" id="endRaceBtn">End race</button>
+                <button class="btn ghost" id="resetRaceBtn">Reset all</button>
+                <button class="btn ghost" id="saveConfigBtn">Save config</button>
+                <button class="btn ghost" id="loadConfigBtn">Load config</button>
+              </div>
+            </div>
+
+            <div class="span-12">
+              <div class="subgrid">
+                <div class="span-3">
+                  <div class="label">Race clock</div>
+                  <div id="statClock" style="font-weight:800;font-size:20px;">00:00:00</div>
+                </div>
+                <div class="span-3">
+                  <div class="label">Runners</div>
+                  <div id="statRunners" style="font-weight:800;font-size:20px;">0</div>
+                </div>
+                <div class="span-3">
+                  <div class="label">Crossings queued</div>
+                  <div id="statCrossings" style="font-weight:800;font-size:20px;">0</div>
+                </div>
+                <div class="span-3">
+                  <div class="label">Finished</div>
+                  <div id="statFinished" style="font-weight:800;font-size:20px;">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="span-12">
+              <div class="log" id="systemLog" aria-live="polite"></div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          <div>Tip: Click add crossing for each runner; assign bibs later—sequence is preserved.</div>
+          <div>Autosave: Config and state backed up locally.</div>
+        </div>
+      </section>
+
+      <!-- Roster -->
+      <section class="panel span-12 tabpanel hidden" id="tab-roster">
+        <div class="panel-header">
+          <div class="panel-title">Roster management</div>
+          <div class="chips">
+            <div class="chip">Manual add</div>
+            <div class="chip">CSV/JSON import</div>
+            <div class="chip">Duplicate bib guard</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="subgrid">
+            <div class="span-6">
+              <div class="label">Add runner</div>
+              <div class="subgrid">
+                <div class="span-3"><input id="bibInput" type="number" placeholder="Bib" /></div>
+                <div class="span-6"><input id="nameInput" type="text" placeholder="Name" /></div>
+                <div class="span-3 teams-block hidden"><input id="teamInput" type="text" placeholder="Team" /></div>
+              </div>
+              <div class="controls">
+                <button class="btn accent" id="addRunnerBtn">Add</button>
+                <button class="btn ghost" id="clearRunnerFormBtn">Clear</button>
+              </div>
+            </div>
+            <div class="span-6">
+              <div class="label">Import / export</div>
+              <div class="controls">
+                <button class="btn ghost" id="exportRosterBtn">Export JSON</button>
+                <button class="btn ghost" id="exportRosterCsvBtn">Export CSV</button>
+                <label class="btn ghost" for="importRosterFile">Import JSON</label>
+                <input class="hidden" type="file" id="importRosterFile" accept=".json">
+                <label class="btn ghost" for="importRosterCsvFile">Import CSV</label>
+                <input class="hidden" type="file" id="importRosterCsvFile" accept=".csv">
+              </div>
+            </div>
+
+            <div class="span-12">
+              <div class="label">Roster</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Bib</th><th>Name</th><th class="teams-head teams-only hidden">Team</th><th>DQ?</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="rosterBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Race -->
+      <section class="panel span-12 tabpanel hidden" id="tab-race">
+        <div class="panel-header">
+          <div class="panel-title">Race controls and crossing queue</div>
+          <div class="chips">
+            <div class="chip">C add, U undo, Space start/pause</div>
+            <div class="chip">Sequence preserved</div>
+            <div class="chip">Safe editing</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="subgrid">
+            <div class="span-12">
+              <div class="controls">
+                <button class="btn primary" id="raceAddCrossingBtn">Add crossing</button>
+                <button class="btn ghost" id="raceUndoCrossingBtn">Undo last crossing</button>
+                <button class="btn warn" id="racePauseBtn">Pause</button>
+                <button class="btn accent hidden" id="raceResumeBtn">Resume</button>
+                <button class="btn danger" id="raceEndBtn">End race</button>
+              </div>
+            </div>
+            <div class="span-12">
+              <div class="label">Crossing queue</div>
+              <ul class="queue-list" id="crossingQueue" style="list-style:none;padding:0;margin:0;display:grid;gap:10px;"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results -->
+      <section class="panel span-12 tabpanel hidden" id="tab-results">
+        <div class="panel-header">
+          <div class="panel-title">Leaderboard and analytics</div>
+          <div class="chips">
+            <div class="chip">Laps</div>
+            <div class="chip">Last lap</div>
+            <div class="chip">Avg speed</div>
+            <div class="chip">Finishers</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="subgrid">
+            <div class="span-12">
+              <div class="controls">
+                <button class="btn ghost" id="exportResultsJsonBtn">Export results (JSON)</button>
+                <button class="btn ghost" id="exportResultsCsvBtn">Export results (CSV)</button>
+                <button class="btn ghost" id="saveStateBtn">Save state</button>
+                <button class="btn ghost" id="loadStateBtn">Load state</button>
+                <button class="btn ghost" id="clearStateBtn">Clear local state</button>
+              </div>
+            </div>
+            <div class="span-12">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pos</th><th>Bib</th><th>Name</th><th class="teams-head teams-only hidden">Team</th><th>Laps</th><th>Last lap (s)</th><th>Avg lap (s)</th><th>Avg last 3 (s)</th><th>Avg speed (km/h)</th><th>Finish?</th><th>DQ?</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboardBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          <div>Sorted by laps → avg speed → earliest last crossing. DQ runners are excluded from position ranking.</div>
+          <div>Export formats ready for spreadsheets.</div>
+        </div>
+      </section>
+
+      <!-- Supabase -->
+      <section class="panel span-12 tabpanel hidden" id="tab-supabase">
+        <div class="panel-header">
+          <div class="panel-title">Supabase setup and link generator</div>
+          <div class="chips">
+            <div class="chip">Event log + Runner snapshots</div>
+            <div class="chip">Hash-encoded viewer link</div>
+            <div class="chip">REST polling friendly</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="subgrid">
+            <div class="span-4">
+              <div class="label">Supabase project URL</div>
+              <input id="sbUrl" type="text" placeholder="https://YOUR-PROJECT.supabase.co">
+            </div>
+            <div class="span-4">
+              <div class="label">Supabase anon/public API key</div>
+              <input id="sbKey" type="password" placeholder="ey...">
+            </div>
+            <div class="span-4">
+              <div class="label">Event table name</div>
+              <input id="sbTable" type="text" value="race_events">
+            </div>
+
+            <div class="span-12">
+              <div class="controls">
+                <button class="btn accent" id="saveSbBtn">Save Supabase info</button>
+                <button class="btn ghost" id="loadSbBtn">Load saved Supabase</button>
+                <button class="btn ghost" id="clearSbBtn">Clear saved Supabase</button>
+              </div>
+            </div>
+
+            <div class="span-12">
+              <div class="label">Viewer link (hash-encoded)</div>
+              <div class="controls">
+                <input id="viewerBase" type="text" placeholder="https://YOUR-VIEWER-URL">
+                <button class="btn accent" id="genLinkBtn">Generate link</button>
+              </div>
+              <input id="genLinkOut" type="text" placeholder="Generated link will appear here">
+              <div class="chips">
+                <span class="chip">Format: {viewerBase}#1={supabase-url}|2={api-key}|3={event-table}|4={race-id}</span>
+                <span class="chip">Client-side only</span>
+              </div>
+            </div>
+
+            <div class="span-12">
+              <div class="label">SQL — create tables</div>
+              <textarea id="sqlBox" rows="12" readonly></textarea>
+              <div class="controls">
+                <button class="btn ghost small" id="copySqlBtn">Copy SQL</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          <div>Run SQL in Supabase SQL editor once. Viewer reads URL/key/table/race from hash.</div>
+          <div>Use REST polling in viewer (no SDK required).</div>
+        </div>
+      </section>
+
+      <!-- About -->
+      <section class="panel span-12 tabpanel hidden" id="tab-about">
+        <div class="panel-header">
+          <div class="panel-title">About this race page</div>
+          <div class="chips">
+            <div class="chip">One-page control</div>
+            <div class="chip">Queue-first timing</div>
+            <div class="chip">Teams optional</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <p>
+            This control center handles real-world timing chaos: add crossings as they occur, then assign bibs individually so no one is missed.
+            Random start delay plays your sound file between 3–7 seconds after you press start, simulating a real starter's unpredictability.
+            It includes roster management, start/pause/resume/end flow, crossing queue, live leaderboard, exports, and Supabase sync with a hash-encoded viewer link generator.
+            You can also disqualify runners; they’ll be shown but excluded from ranking.
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Random start overlay (text-only) -->
+  <div class="overlay" id="startOverlay"><div class="badge" id="startBadge">Waiting…</div></div>
+
+  <!-- Audio for start sound -->
+  <audio id="startSound"></audio>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ---------- Global state ----------
+    const state = {
+      config: {
+        raceName: "",
+        lapDistance: 0,
+        lapUnits: "m",
+        totalLaps: null,
+        teamsEnabled: false
+      },
+      race: {
+        startedAt: null,
+        pausedAt: null,
+        totalPausedMs: 0,
+        isRunning: false,
+        isPaused: false,
+        isEnded: false
+      },
+      raceId: null,
+      roster: [], // {bib, name, team?, dq?}
+      dqSet: new Set(), // bibs disqualified
+      queue: [],  // {id, time, bib, assigned}
+      lapsByBib: {}, // bib -> [Date]
+      results: {}, // bib -> {laps, lastLap, avgSpeed, finished, avgLap, avgLast3}
+      audit: [], // local event cache
+      supabase: { url: "", key: "", table: "race_events" }
+    };
+
+    // ---------- Helpers ----------
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+    function toast(msg) {
+      const t = $("#toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(()=> t.classList.remove("show"), 2500);
+    }
+    function log(msg) {
+      const el = $("#systemLog");
+      const t = new Date().toLocaleTimeString();
+      el.innerHTML = `[${t}] ${msg}<br>` + el.innerHTML;
+    }
+    function fmtTime(ms) {
+      const totalSec = Math.floor(ms/1000);
+      const h = String(Math.floor(totalSec/3600)).padStart(2,"0");
+      const m = String(Math.floor((totalSec%3600)/60)).padStart(2,"0");
+      const s = String(totalSec%60).padStart(2,"0");
+      return `${h}:${m}:${s}`;
+    }
+    function toKm(distance, units) {
+      if (units === "m") return distance / 1000;
+      if (units === "km") return distance;
+      if (units === "mi") return distance * 1.609344;
+      return distance;
+    }
+    function downloadJson(filename, data) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+    function downloadCsv(filename, rows) {
+      const csv = rows.map(r => r.map(cell => {
+        const s = String(cell ?? "");
+        if (s.includes(",") || s.includes("\"") || s.includes("\n")) return `"${s.replace(/"/g,'""')}"`;
+        return s;
+      }).join(",")).join("\n");
+      const blob = new Blob([csv], {type:"text/csv"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+    function persistLocal(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+    function restoreLocal(key) { const raw = localStorage.getItem(key); try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+    }
+    function slugify(s) { return s.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,""); }
+    function ensureRaceId() {
+      if (!state.raceId) {
+        const dt = new Date().toISOString().slice(0,19).replace(/[:T]/g,"");
+        state.raceId = slugify(`${state.config.raceName}-${dt}`);
+      }
+    }
+
+    // ---------- Supabase ----------
+    function sbHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "apikey": state.supabase.key,
+        "Authorization": `Bearer ${state.supabase.key}`
+      };
+    }
+    async function sbInsert(table, row) {
+      const res = await fetch(`${state.supabase.url}/rest/v1/${table}`, {
+        method: "POST",
+        headers: { ...sbHeaders(), "Prefer": "return=representation" },
+        body: JSON.stringify(row)
+      });
+      if (!res.ok) throw new Error(`Supabase insert failed: ${res.status}`);
+      return res.json();
+    }
+    async function sbUpsert(table, row, conflictTarget) {
+      const res = await fetch(`${state.supabase.url}/rest/v1/${table}?on_conflict=${encodeURIComponent(conflictTarget)}`, {
+        method: "POST",
+        headers: { ...sbHeaders(), "Prefer": "resolution=merge-duplicates" },
+        body: JSON.stringify(row)
+      });
+      if (!res.ok) throw new Error(`Supabase upsert failed: ${res.status}`);
+      return res.json();
+    }
+    async function withRetry(fn, attempts = 3) {
+      let delay = 600;
+      for (let i = 0; i < attempts; i++) {
+        try { return await fn(); } catch (e) {
+          if (i === attempts - 1) throw e;
+          await sleep(delay); delay *= 2;
+        }
+      }
+    }
+    const SQL_TEXT = `-- Event log table
+create extension if not exists pgcrypto;
+create table if not exists race_events (
+  id uuid primary key default gen_random_uuid(),
+  event_type text not null,           -- 'runner_add','runner_edit','runner_delete','race_start','race_pause','race_resume','race_end','lap','finish','lap_remove','dq','undq'
+  race_id text not null,
+  race_name text,
+  bib_number int,
+  name text,
+  team text,
+  lap_number int,
+  crossing_time timestamptz,
+  lap_time_sec float,
+  avg_speed_kmh float,
+  finished boolean,
+  created_at timestamptz default now()
+);
+create index if not exists idx_events_race on race_events(race_id, created_at);
+create index if not exists idx_events_bib on race_events(race_id, bib_number);
+
+-- Per-runner live snapshot
+create table if not exists runner_state (
+  race_id text not null,
+  bib_number int not null,
+  name text,
+  team text,
+  current_lap int default 0,
+  last_lap_sec float,
+  total_time_sec float,
+  avg_speed_kmh float,
+  avg_lap_sec float,
+  avg_last3_lap_sec float,
+  finished boolean default false,
+  dq boolean default false,
+  last_crossing timestamptz,
+  updated_at timestamptz default now(),
+  primary key (race_id, bib_number)
+);
+create index if not exists idx_runner_state_race on runner_state(race_id);`;
+
+    // ---------- Tabs ----------
+    $$(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        $$(".tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        const target = tab.dataset.tab;
+        $$(".tabpanel").forEach(p => p.classList.add("hidden"));
+        $(`#tab-${target}`).classList.remove("hidden");
+      });
+    });
+
+    // ---------- Setup actions ----------
+    $("#toggleTeamsBtn").addEventListener("click", () => {
+      state.config.teamsEnabled = !state.config.teamsEnabled;
+      $("#teamsStatus").textContent = state.config.teamsEnabled ? "Enabled" : "Disabled";
+      $$(".teams-block").forEach(el => el.classList.toggle("hidden", !state.config.teamsEnabled));
+      $$(".teams-head").forEach(el => el.classList.toggle("hidden", !state.config.teamsEnabled));
+      renderRoster();
+      renderLeaderboard();
+      log(`Teams ${state.config.teamsEnabled ? "enabled" : "disabled"}.`);
+      toast(`Teams ${state.config.teamsEnabled ? "enabled" : "disabled"}`);
+    });
+
+    $("#startRaceBtn").addEventListener("click", async () => {
+      const name = $("#raceName").value.trim();
+      const lapDistance = parseFloat($("#lapDistance").value || "0");
+      const lapUnits = $("#lapUnits").value;
+      const totalLaps = parseInt($("#totalLaps").value || "0");
+      const soundUrl = $("#startSoundUrl").value.trim();
+      if (!name) { alert("Enter a race name."); return; }
+      if (!(lapDistance > 0)) { alert("Enter lap distance."); return; }
+      if (!soundUrl) { alert("Enter a start sound file URL."); return; }
+
+      state.config.raceName = name;
+      state.config.lapDistance = lapDistance;
+      state.config.lapUnits = lapUnits;
+      state.config.totalLaps = Number.isFinite(totalLaps) && totalLaps > 0 ? totalLaps : null;
+
+      const audio = $("#startSound");
+      audio.src = soundUrl;
+      audio.load();
+
+      ensureRaceId();
+
+      // Random delay between 3–7 seconds
+      const delayMs = (Math.floor(Math.random() * 5) + 3) * 1000;
+      $("#startOverlay").style.display = "flex";
+      $("#startBadge").textContent = "Starter waiting…";
+      await sleep(delayMs);
+
+      try { await audio.play(); } catch (e) { console.warn("Audio play failed:", e); }
+      $("#startOverlay").style.display = "none";
+
+      startRace();
+    });
+
+    $("#pauseRaceBtn").addEventListener("click", pauseRace);
+    $("#resumeRaceBtn").addEventListener("click", resumeRace);
+    $("#endRaceBtn").addEventListener("click", endRace);
+    $("#resetRaceBtn").addEventListener("click", () => {
+      if (!confirm("Reset race, roster, queue, and results? This clears local state.")) return;
+      resetAll();
+    });
+
+    $("#saveConfigBtn").addEventListener("click", () => { persistLocal("raceConfig", state.config); log("Config saved locally."); toast("Config saved"); });
+    $("#loadConfigBtn").addEventListener("click", () => {
+      const cfg = restoreLocal("raceConfig");
+      if (cfg) {
+        Object.assign(state.config, cfg);
+        $("#raceName").value = cfg.raceName || "";
+        $("#lapDistance").value = cfg.lapDistance || "";
+        $("#lapUnits").value = cfg.lapUnits || "m";
+        $("#totalLaps").value = cfg.totalLaps || "";
+        const teamsShouldBeEnabled = !!cfg.teamsEnabled;
+        const isEnabled = ($("#teamsStatus").textContent === "Enabled");
+        if (teamsShouldBeEnabled !== isEnabled) $("#toggleTeamsBtn").click();
+        log("Config loaded.");
+        toast("Config loaded");
+      } else { log("No saved config found."); toast("No saved config"); }
+    });
+
+    // ---------- Supabase Manual ----------
+    $("#sqlBox").value = SQL_TEXT;
+    $("#copySqlBtn").addEventListener("click", () => {
+      navigator.clipboard.writeText(SQL_TEXT).then(()=> toast("SQL copied"));
+    });
+
+    $("#saveSbBtn").addEventListener("click", () => {
+      state.supabase.url = $("#sbUrl").value.trim();
+      state.supabase.key = $("#sbKey").value.trim();
+      state.supabase.table = $("#sbTable").value.trim() || "race_events";
+      if (!state.supabase.url || !state.supabase.key || !state.supabase.table) {
+        alert("Please enter Supabase URL, API key, and table name.");
+        return;
+      }
+      persistLocal("supabaseInfo", state.supabase);
+      log("Supabase info saved.");
+      toast("Supabase info saved");
+    });
+    $("#loadSbBtn").addEventListener("click", () => {
+      const saved = restoreLocal("supabaseInfo");
+      if (!saved) { log("No saved Supabase info."); toast("No saved Supabase info"); return; }
+      state.supabase = saved;
+      $("#sbUrl").value = saved.url || "";
+      $("#sbKey").value = saved.key || "";
+      $("#sbTable").value = saved.table || "race_events";
+      log("Supabase info loaded.");
+      toast("Supabase info loaded");
+    });
+    $("#clearSbBtn").addEventListener("click", () => {
+      localStorage.removeItem("supabaseInfo");
+      state.supabase = { url: "", key: "", table: "race_events" };
+      $("#sbUrl").value = ""; $("#sbKey").value = ""; $("#sbTable").value = "race_events";
+      log("Supabase info cleared.");
+      toast("Supabase info cleared");
+    });
+
+    $("#genLinkBtn").addEventListener("click", () => {
+      const base = $("#viewerBase").value.trim();
+      const url = state.supabase.url.trim();
+      const key = state.supabase.key.trim();
+      const table = state.supabase.table.trim();
+      ensureRaceId();
+      const raceId = state.raceId;
+      if (!base || !url || !key || !table || !raceId) { alert("Need viewer base, Supabase URL, key, table, and race ID (start race first)."); return; }
+      const link = `${base}#1=${encodeURIComponent(url)}|2=${encodeURIComponent(key)}|3=${encodeURIComponent(table)}|4=${encodeURIComponent(raceId)}`;
+      $("#genLinkOut").value = link;
+      log("Viewer link generated.");
+      toast("Viewer link generated");
+    });
+
+    // ---------- Event emission & metrics ----------
+    function getLapArray(bib) {
+      state.lapsByBib[bib] ??= [];
+      return state.lapsByBib[bib];
+    }
+    function computeMetrics(bib) {
+      const laps = getLapArray(bib);
+      const n = laps.length;
+      const lastLapSec = n > 1 ? (laps[n-1] - laps[n-2]) / 1000 : null;
+      const last = laps[n-1] || state.race.startedAt || new Date();
+      const totalSec = state.race.startedAt ? ((last - state.race.startedAt - state.race.totalPausedMs) / 1000) : 0;
+      const lapKm = toKm(state.config.lapDistance, state.config.lapUnits);
+      const distanceKm = n * lapKm;
+      const hours = totalSec / 3600;
+      const avgSpeedKmh = hours > 0 ? (distanceKm / hours) : 0;
+
+      const lapSecs = laps.map((t,i) => i ? (t - laps[i-1])/1000 : null).filter(Boolean);
+      const avgLapSec = lapSecs.length ? lapSecs.reduce((a,b)=>a+b,0) / lapSecs.length : null;
+      const last3 = lapSecs.slice(-3);
+      const avgLast3LapSec = last3.length ? last3.reduce((a,b)=>a+b,0) / last3.length : null;
+
+      const finished = state.config.totalLaps ? (n >= state.config.totalLaps) : false;
+      const dq = state.dqSet.has(Number(bib));
+
+      return { current_lap: n, last_lap_sec: lastLapSec, total_time_sec: totalSec, avg_speed_kmh: avgSpeedKmh, avg_lap_sec: avgLapSec, avg_last3_lap_sec: avgLast3LapSec, finished, dq, last_crossing: laps[n-1] || null };
+    }
+
+    async function emitEvent(ev) {
+      try {
+        ensureRaceId();
+        const base = {
+          race_id: state.raceId,
+          race_name: state.config.raceName,
+          created_at: new Date().toISOString()
+        };
+        const row = { ...base, ...ev };
+        state.audit.unshift(row);
+
+        if (state.supabase.url && state.supabase.key && state.supabase.table) {
+          await withRetry(() => sbInsert(state.supabase.table, row));
+          // Update runner_state on runner-affecting events
+          if (ev.bib_number != null) {
+            const bib = Number(ev.bib_number);
+            const rosterRunner = state.roster.find(r => r.bib == bib) || {};
+            const m = computeMetrics(bib);
+            const snap = {
+              race_id: state.raceId,
+              bib_number: bib,
+              name: rosterRunner.name || ev.name || "Unknown",
+              team: rosterRunner.team || ev.team || "",
+              current_lap: m.current_lap,
+              last_lap_sec: m.last_lap_sec,
+              total_time_sec: m.total_time_sec,
+              avg_speed_kmh: m.avg_speed_kmh,
+              avg_lap_sec: m.avg_lap_sec,
+              avg_last3_lap_sec: m.avg_last3_lap_sec,
+              finished: m.finished || !!ev.finished,
+              dq: m.dq,
+              last_crossing: m.last_crossing ? new Date(m.last_crossing).toISOString() : null,
+              updated_at: new Date().toISOString()
+            };
+            await withRetry(() => sbUpsert("runner_state", snap, "race_id,bib_number"));
+          }
+        }
+      } catch (e) {
+        log(`Supabase sync failed: ${e.message}`);
+        toast("Supabase sync failed");
+      }
+    }
+
+    // ---------- Roster ----------
+    $("#addRunnerBtn").addEventListener("click", () => {
+      const bib = parseInt($("#bibInput").value || "0");
+      const name = $("#nameInput").value.trim();
+      const team = $("#teamInput").value.trim();
+      if (!(bib > 0)) { alert("Enter valid bib."); return; }
+      if (!name) { alert("Enter name."); return; }
+      if (state.roster.some(r => r.bib === bib)) { alert("Bib already exists."); return; }
+      const runner = { bib, name, team: state.config.teamsEnabled ? (team || "") : "" , dq: false };
+      state.roster.push(runner);
+      renderRoster();
+      $("#bibInput").value = ""; $("#nameInput").value = ""; $("#teamInput").value = "";
+      log(`Runner added: #${bib} ${name}${runner.team ? " ("+runner.team+")" : ""}`);
+      toast(`Runner added #${bib}`);
+      emitEvent({ event_type: "runner_add", bib_number: bib, name, team: runner.team });
+    });
+    $("#clearRunnerFormBtn").addEventListener("click", () => { $("#bibInput").value = ""; $("#nameInput").value = ""; $("#teamInput").value = ""; });
+    $("#exportRosterBtn").addEventListener("click", () => downloadJson("roster.json", state.roster));
+    $("#exportRosterCsvBtn").addEventListener("click", () => {
+      const rows = [["bib","name","team","dq"], ...state.roster.map(r => [r.bib, r.name, r.team || "", r.dq ? "1" : "0"])];
+      downloadCsv("roster.csv", rows);
+    });
+    $("#importRosterFile").addEventListener("change", (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      file.text().then(txt => {
+        try {
+          const arr = JSON.parse(txt);
+          if (!Array.isArray(arr)) throw new Error("Invalid JSON");
+          state.roster = arr.filter(x => x && x.bib && x.name).map(x => ({ bib: Number(x.bib), name: String(x.name), team: String(x.team||""), dq: !!x.dq }));
+          arr.forEach(x => { if (x.dq) state.dqSet.add(Number(x.bib)); });
+          renderRoster();
+          log(`Roster imported (${state.roster.length} runners).`);
+          toast("Roster imported");
+        } catch (err) { alert("Import failed: " + err.message); }
+      });
+    });
+    $("#importRosterCsvFile").addEventListener("change", (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      file.text().then(txt => {
+        try {
+          const lines = txt.trim().split(/\r?\n/);
+          const header = lines.shift().split(",");
+          const idxBib = header.indexOf("bib");
+          const idxName = header.indexOf("name");
+          const idxTeam = header.indexOf("team");
+          const idxDq = header.indexOf("dq");
+          if (idxBib < 0 || idxName < 0) throw new Error("CSV must include bib,name[,team,dq]");
+          state.roster = lines.map(line => {
+            const cols = line.split(",");
+            const bib = Number(cols[idxBib]), name = cols[idxName];
+            const team = idxTeam>=0 ? cols[idxTeam] : "";
+            const dq = idxDq>=0 ? (cols[idxDq] === "1") : false;
+            if (dq) state.dqSet.add(bib);
+            return { bib, name, team, dq };
+          }).filter(r => r.bib && r.name);
+          renderRoster();
+          log(`Roster imported from CSV (${state.roster.length} runners).`);
+          toast("Roster CSV imported");
+        } catch (err) { alert("CSV import failed: " + err.message); }
+      });
+    });
+
+    function renderRoster() {
+      const body = $("#rosterBody");
+      body.innerHTML = "";
+      state.roster.sort((a,b) => a.bib - b.bib).forEach(r => {
+        const tr = document.createElement("tr");
+        const dq = state.dqSet.has(r.bib);
+        tr.innerHTML = `
+          <td>${r.bib}</td>
+          <td>${r.name}</td>
+          <td class="${state.config.teamsEnabled ? "" : "hidden"}">${r.team || ""}</td>
+          <td>${dq ? "Yes" : "No"}</td>
+          <td>
+            <button class="btn ghost small" onclick="editRunner(${r.bib})">Edit</button>
+            <button class="btn ${dq ? 'accent' : 'danger'} small" onclick="toggleDQ(${r.bib})">${dq ? 'Undisqualify' : 'Disqualify'}</button>
+            <button class="btn danger small" onclick="deleteRunner(${r.bib})">Delete</button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+      $("#statRunners").textContent = state.roster.length;
+    }
+    window.editRunner = function(bib) {
+      const r = state.roster.find(x => x.bib == bib);
+      if (!r) return;
+      const name = prompt("Edit name:", r.name);
+      if (name === null) return;
+      r.name = name.trim();
+      if (state.config.teamsEnabled) {
+        const team = prompt("Edit team:", r.team || "");
+        if (team !== null) r.team = team.trim();
+      }
+      renderRoster();
+      log(`Runner edited #${bib}`);
+      toast(`Runner edited #${bib}`);
+      emitEvent({ event_type: "runner_edit", bib_number: bib, name: r.name, team: r.team || "" });
+      renderLeaderboard();
+    };
+    window.deleteRunner = function(bib) {
+      const idx = state.roster.findIndex(x => x.bib == bib);
+      if (idx < 0) return;
+      if (!confirm(`Delete runner #${bib}?`)) return;
+      state.roster.splice(idx, 1);
+      state.dqSet.delete(Number(bib));
+      renderRoster();
+      log(`Runner deleted #${bib}`);
+      toast(`Runner deleted #${bib}`);
+      emitEvent({ event_type: "runner_delete", bib_number: bib });
+      renderLeaderboard();
+    };
+
+    window.toggleDQ = function(bib) {
+      const nBib = Number(bib);
+      if (state.dqSet.has(nBib)) state.dqSet.delete(nBib);
+      else state.dqSet.add(nBib);
+      const dq = state.dqSet.has(nBib);
+      const runner = state.roster.find(r => r.bib == nBib);
+      if (runner) runner.dq = dq;
+      renderRoster();
+      renderLeaderboard();
+      log(`Runner #${bib} ${dq ? "disqualified" : "undisqualified"}`);
+      toast(`Runner #${bib} ${dq ? "DQ" : "undq"}`);
+      emitEvent({ event_type: dq ? "dq" : "undq", bib_number: nBib, name: runner?.name, team: runner?.team });
+    };
+
+    // ---------- Race ----------
+    $("#raceAddCrossingBtn").addEventListener("click", addCrossing);
+    $("#raceUndoCrossingBtn").addEventListener("click", undoCrossing);
+    $("#racePauseBtn").addEventListener("click", pauseRace);
+    $("#raceResumeBtn").addEventListener("click", resumeRace);
+    $("#raceEndBtn").addEventListener("click", endRace);
+
+    function startRace() {
+      if (state.race.isRunning) return;
+      state.race.startedAt = new Date();
+      state.race.isRunning = true;
+      state.race.isPaused = false;
+      state.race.isEnded = false;
+      state.race.totalPausedMs = 0;
+      $("#pauseRaceBtn").classList.remove("hidden");
+      $("#resumeRaceBtn").classList.add("hidden");
+      setRaceStatus("Running");
+      log(`Race started: ${state.config.raceName}.`);
+      toast("Race started");
+      tickClock();
+      emitEvent({ event_type: "race_start" });
+    }
+    function pauseRace() {
+      if (!state.race.isRunning || state.race.isPaused) return;
+      state.race.isPaused = true;
+      state.race.pausedAt = new Date();
+      $("#pauseRaceBtn").classList.add("hidden");
+      $("#resumeRaceBtn").classList.remove("hidden");
+      setRaceStatus("Paused");
+      log("Race paused.");
+      toast("Race paused");
+      emitEvent({ event_type: "race_pause" });
+    }
+    function resumeRace() {
+      if (!state.race.isRunning || !state.race.isPaused) return;
+      const now = new Date();
+      const pausedMs = now - state.race.pausedAt;
+      state.race.totalPausedMs += pausedMs;
+      state.race.isPaused = false;
+      state.race.pausedAt = null;
+      $("#pauseRaceBtn").classList.remove("hidden");
+      $("#resumeRaceBtn").classList.add("hidden");
+      setRaceStatus("Running");
+      log("Race resumed.");
+      toast("Race resumed");
+      emitEvent({ event_type: "race_resume" });
+    }
+    function endRace() {
+      if (!state.race.isRunning) return;
+      state.race.isRunning = false;
+      state.race.isPaused = false;
+      state.race.isEnded = true;
+      $("#pauseRaceBtn").classList.add("hidden");
+      $("#resumeRaceBtn").classList.add("hidden");
+      setRaceStatus("Ended");
+      log("Race ended.");
+      toast("Race ended");
+      renderLeaderboard(); // final calc
+      emitEvent({ event_type: "race_end" });
+    }
+    function resetAll() {
+      state.race = { startedAt: null, pausedAt: null, totalPausedMs: 0, isRunning: false, isPaused: false, isEnded: false };
+      state.raceId = null;
+      state.roster = [];
+      state.dqSet = new Set();
+      state.queue = [];
+      state.results = {};
+      state.lapsByBib = {};
+      state.audit = [];
+      renderAll();
+      setRaceStatus("Idle");
+      log("Reset complete.");
+      toast("Reset complete");
+    }
+
+    function setRaceStatus(text) {
+      const chip = $("#raceStatusChip");
+      chip.textContent = text;
+      chip.classList.remove("status-running", "status-paused", "status-ended");
+      if (text === "Running") chip.classList.add("status-running");
+      else if (text === "Paused") chip.classList.add("status-paused");
+      else if (text === "Ended") chip.classList.add("status-ended");
+    }
+
+    let clockTimer = null;
+    function tickClock() {
+      if (clockTimer) clearInterval(clockTimer);
+      clockTimer = setInterval(() => {
+        if (!state.race.startedAt) { $("#statClock").textContent = "00:00:00"; return; }
+        let now = new Date();
+        let elapsed = now - state.race.startedAt - state.race.totalPausedMs;
+        if (state.race.isPaused) elapsed -= now - state.race.pausedAt;
+        if (elapsed < 0) elapsed = 0;
+        $("#statClock").textContent = fmtTime(elapsed);
+      }, 250);
+    }
+
+    function addCrossing() {
+      if (!state.race.isRunning || state.race.isPaused) { log("Cannot add crossing while race not running or paused."); toast("Race not running or paused"); return; }
+      const crossingTime = new Date();
+      const id = state.queue.length ? (state.queue[state.queue.length-1].id + 1) : 1;
+      const slot = { id, time: crossingTime, bib: null, assigned: false };
+      state.queue.push(slot);
+      renderQueueItem(slot);
+      $("#statCrossings").textContent = state.queue.length;
+      log(`Queue slot added #${id} at ${crossingTime.toLocaleTimeString()}`);
+    }
+    function undoCrossing() {
+      if (!state.queue.length) return;
+      const removed = state.queue.pop();
+      const el = document.getElementById(`queue-${removed.id}`);
+      if (el) el.remove();
+      $("#statCrossings").textContent = state.queue.length;
+      log(`Queue slot removed #${removed.id}`);
+    }
+    function renderQueueItem(slot) {
+      const ul = $("#crossingQueue");
+      const li = document.createElement("li");
+      li.className = "queue-item";
+      li.id = `queue-${slot.id}`;
+      li.style.cssText = "display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;background:#141a3a;border:1px solid var(--border);border-radius:12px;padding:10px;";
+      li.innerHTML = `
+        <div class="queue-meta" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <span class="chip">#${slot.id}</span>
+          <span class="chip">Crossed at ${slot.time.toLocaleTimeString()}</span>
+          <span class="chip">Bib:
+            <input type="number" id="queue-bib-${slot.id}" placeholder="Enter bib" style="width:110px;margin-left:6px;">
+          </span>
+          <span class="chip">Elapsed: <span id="queue-elapsed-${slot.id}">—</span></span>
+        </div>
+        <div class="queue-actions" style="display:flex;gap:8px;">
+          <button class="btn accent small" onclick="assignBib(${slot.id})">Assign</button>
+          <button class="btn ghost small" onclick="deleteQueueSlot(${slot.id})">Delete</button>
+        </div>
+      `;
+      ul.appendChild(li);
+      let t = 0;
+      const timer = setInterval(() => {
+        const elp = document.getElementById(`queue-elapsed-${slot.id}`);
+        if (t > 20 || !elp) { clearInterval(timer); return; }
+        const elapsedSec = Math.max(0, Math.floor((Date.now() - slot.time)/1000));
+        elp.textContent = `${elapsedSec}s`;
+        t++;
+      }, 1000);
+    }
+    window.deleteQueueSlot = function(id) {
+      const idx = state.queue.findIndex(x => x.id === id);
+      if (idx >= 0) {
+        const [removed] = state.queue.splice(idx, 1);
+        const el = document.getElementById(`queue-${id}`);
+        if (el) el.remove();
+        $("#statCrossings").textContent = state.queue.length;
+        log(`Queue slot deleted #${removed.id}`);
+      }
+    };
+    window.assignBib = async function(id) {
+      const slot = state.queue.find(x => x.id === id);
+      if (!slot) return;
+      const bib = parseInt($(`#queue-bib-${id}`).value || "0");
+      if (!bib) { alert("Enter bib."); return; }
+      const dq = state.dqSet.has(bib);
+      if (dq) {
+        if (!confirm("This runner is disqualified. Assign crossing anyway?")) return;
+      }
+      const runner = state.roster.find(r => r.bib === bib);
+      if (!runner) {
+        if (!confirm("Bib not in roster. Assign anyway?")) return;
+      }
+      slot.bib = bib;
+      slot.assigned = true;
+
+      // Metrics update
+      const laps = getLapArray(bib);
+      laps.push(slot.time);
+
+      const m = computeMetrics(bib);
+      // Update results view model
+      state.results[bib] = {
+        laps: m.current_lap,
+        lastLap: m.last_lap_sec,
+        avgSpeed: m.avg_speed_kmh,
+        finished: m.finished,
+        avgLap: m.avg_lap_sec,
+        avgLast3: m.avg_last3_lap_sec,
+        times: laps.slice()
+      };
+
+      const el = document.getElementById(`queue-${id}`);
+      if (el) {
+        const input = el.querySelector("input");
+        const assignBtn = el.querySelector(".btn.accent");
+        if (input) input.disabled = true;
+        if (assignBtn) assignBtn.disabled = true;
+      }
+      $("#statCrossings").textContent = state.queue.length;
+      log(`Bib assigned to slot #${id} → bib ${bib}`);
+      toast(`Lap logged #${bib}`);
+
+      await emitEvent({
+        event_type: "lap",
+        bib_number: bib,
+        name: runner?.name,
+        team: runner?.team,
+        lap_number: m.current_lap,
+        crossing_time: slot.time.toISOString(),
+        lap_time_sec: m.last_lap_sec,
+        avg_speed_kmh: m.avg_speed_kmh,
+        finished: m.finished
+      });
+
+      renderLeaderboard();
+    };
+
+    // ---------- Leaderboard ----------
+    function renderLeaderboard() {
+      const tbody = $("#leaderboardBody");
+      tbody.innerHTML = "";
+      const rows = [];
+      for (const [bib, r] of Object.entries(state.results)) {
+        const runner = state.roster.find(x => x.bib == bib) || { name: "Unknown", team: "", dq: false };
+        const dq = state.dqSet.has(Number(bib));
+        const lastCross = r.times?.[r.times.length - 1];
+        const tieBreaker = lastCross ? new Date(lastCross).getTime() : 0;
+        rows.push({
+          bib: Number(bib),
+          name: runner.name,
+          team: runner.team || "",
+          laps: r.laps,
+          lastLap: r.lastLap,
+          avgLap: r.avgLap,
+          avgLast3: r.avgLast3,
+          avgSpeed: r.avgSpeed,
+          finished: !!r.finished,
+          dq,
+          tieBreaker
+        });
+      }
+      // Sort excluding DQ for rank
+      const sorted = rows.slice().sort((a,b) => {
+        if (a.dq !== b.dq) return a.dq ? 1 : -1; // DQ to bottom
+        if (b.laps !== a.laps) return b.laps - a.laps;
+        if (b.avgSpeed !== a.avgSpeed) return b.avgSpeed - a.avgSpeed;
+        return a.tieBreaker - b.tieBreaker;
+      });
+      let pos = 0;
+      sorted.forEach((row) => {
+        const rank = row.dq ? "-" : (++pos);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${rank}</td>
+          <td>${row.bib}</td>
+          <td>${row.name}</td>
+          <td class="${state.config.teamsEnabled ? "" : "hidden"}">${row.team}</td>
+          <td>${row.laps}</td>
+          <td>${row.lastLap ? row.lastLap.toFixed(1) : "-"}</td>
+          <td>${row.avgLap ? row.avgLap.toFixed(1) : "-"}</td>
+          <td>${row.avgLast3 ? row.avgLast3.toFixed(1) : "-"}</td>
+          <td>${row.avgSpeed ? row.avgSpeed.toFixed(2) : "0.00"}</td>
+          <td>${row.finished ? "Yes" : "No"}</td>
+          <td>${row.dq ? "Yes" : "No"}</td>
+          <td>
+            <button class="btn ghost small" onclick="toggleFinish(${row.bib})">${row.finished ? "Unfinish" : "Finish"}</button>
+            <button class="btn warn small" onclick="removeLastLap(${row.bib})">Remove last lap</button>
+            <button class="btn ${row.dq ? 'accent' : 'danger'} small" onclick="toggleDQ(${row.bib})">${row.dq ? 'Undisqualify' : 'Disqualify'}</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      $("#statFinished").textContent = rows.filter(r => r.finished).length;
+    }
+    window.toggleFinish = async function(bib) {
+      const laps = getLapArray(bib);
+      const r = state.results[bib];
+      const currentFinished = r?.finished || false;
+      const newFinished = !currentFinished;
+      if (!state.results[bib]) {
+        // construct minimal model if unknown yet
+        const m = computeMetrics(bib);
+        state.results[bib] = { laps: m.current_lap, lastLap: m.last_lap_sec, avgSpeed: m.avg_speed_kmh, finished: newFinished, avgLap: m.avg_lap_sec, avgLast3: m.avg_last3_lap_sec, times: getLapArray(bib).slice() };
+      } else {
+        state.results[bib].finished = newFinished;
+      }
+      renderLeaderboard();
+      log(`Runner #${bib} finish toggled → ${newFinished ? "finished" : "unfinish"}`);
+      toast(`Finish toggled #${bib}`);
+      const m = computeMetrics(bib);
+      await emitEvent({
+        event_type: "finish",
+        bib_number: Number(bib),
+        finished: m.finished
+      });
+    };
+    window.removeLastLap = async function(bib) {
+      const laps = getLapArray(bib);
+      if (!laps.length) return;
+      const removedTime = laps.pop();
+      const m = computeMetrics(bib);
+      // update results
+      state.results[bib] = {
+        laps: m.current_lap,
+        lastLap: m.last_lap_sec,
+        avgSpeed: m.avg_speed_kmh,
+        finished: m.finished,
+        avgLap: m.avg_lap_sec,
+        avgLast3: m.avg_last3_lap_sec,
+        times: laps.slice()
+      };
+      renderLeaderboard();
+      log(`Removed last lap for #${bib}`);
+      toast(`Removed lap #${bib}`);
+      await emitEvent({
+        event_type: "lap_remove",
+        bib_number: Number(bib),
+        lap_number: m.current_lap + 1,
+        crossing_time: new Date(removedTime).toISOString()
+      });
+    };
+
+    // ---------- Results export/state ----------
+    $("#exportResultsJsonBtn").addEventListener("click", () => downloadJson("results.json", serializeResults()));
+    $("#exportResultsCsvBtn").addEventListener("click", () => {
+      const rows = [["bib","name","team","laps","lastLapSec","avgLapSec","avgLast3Sec","avgSpeedKmh","finished","dq","lastCrossingIso","totalTimeSec"]];
+      for (const [bib, r] of Object.entries(state.results)) {
+        const runner = state.roster.find(x => x.bib == bib) || { name: "Unknown", team: "" };
+        const last = r.times?.[r.times.length - 1] || state.race.startedAt || new Date();
+        const totalSec = state.race.startedAt ? ((last - state.race.startedAt - state.race.totalPausedMs) / 1000) : 0;
+        const dq = state.dqSet.has(Number(bib));
+        rows.push([bib, runner.name, runner.team || "", r.laps, r.lastLap ?? "", (r.avgLap ?? 0).toFixed(1), (r.avgLast3 ?? 0).toFixed(1), (r.avgSpeed ?? 0).toFixed(2), !!r.finished, dq ? "1":"0", new Date(last).toISOString(), totalSec.toFixed(1)]);
+      }
+      downloadCsv("results.csv", rows);
+    });
+    $("#saveStateBtn").addEventListener("click", () => { persistLocal("raceStateV2", { state: serializeAll() }); log("State saved locally."); toast("State saved"); });
+    $("#loadStateBtn").addEventListener("click", () => {
+      const saved = restoreLocal("raceStateV2");
+      if (!saved || !saved.state) return log("No saved state."), toast("No saved state");
+      inflateAll(saved.state);
+      renderAll();
+      log("State loaded.");
+      toast("State loaded");
+    });
+    $("#clearStateBtn").addEventListener("click", () => { localStorage.removeItem("raceStateV2"); log("Local state cleared."); toast("Local state cleared"); });
+
+    function serializeResults() {
+      const obj = {};
+      for (const [bib, r] of Object.entries(state.results)) {
+        obj[bib] = {
+          laps: r.laps,
+          lastLap: r.lastLap,
+          avgLap: r.avgLap,
+          avgLast3: r.avgLast3,
+          avgSpeed: r.avgSpeed,
+          finished: r.finished,
+          times: (r.times || []).map(t => new Date(t).toISOString())
+        };
+      }
+      return {
+        config: state.config,
+        race: {
+          startedAt: state.race.startedAt ? state.race.startedAt.toISOString() : null,
+          totalPausedMs: state.race.totalPausedMs,
+          isRunning: state.race.isRunning,
+          isPaused: state.race.isPaused,
+          isEnded: state.race.isEnded,
+          raceId: state.raceId
+        },
+        roster: state.roster,
+        dq: Array.from(state.dqSet),
+        results: obj
+      };
+    }
+    function serializeAll() {
+      return {
+        config: state.config,
+        race: {
+          startedAt: state.race.startedAt ? state.race.startedAt.toISOString() : null,
+          pausedAt: state.race.pausedAt ? state.race.pausedAt.toISOString() : null,
+          totalPausedMs: state.race.totalPausedMs,
+          isRunning: state.race.isRunning,
+          isPaused: state.race.isPaused,
+          isEnded: state.race.isEnded
+        },
+        raceId: state.raceId,
+        roster: state.roster,
+        dq: Array.from(state.dqSet),
+        queue: state.queue.map(q => ({...q, time: q.time.toISOString()})),
+        lapsByBib: Object.fromEntries(Object.entries(state.lapsByBib).map(([bib, arr]) => [bib, arr.map(t => new Date(t).toISOString())])),
+        results: serializeResults().results,
+        supabase: state.supabase
+      };
+    }
+    function inflateAll(saved) {
+      if (saved.config) Object.assign(state.config, saved.config);
+      if (saved.race) {
+        state.race.startedAt = saved.race.startedAt ? new Date(saved.race.startedAt) : null;
+        state.race.pausedAt = saved.race.pausedAt ? new Date(saved.race.pausedAt) : null;
+        state.race.totalPausedMs = saved.race.totalPausedMs || 0;
+        state.race.isRunning = !!saved.race.isRunning;
+        state.race.isPaused = !!saved.race.isPaused;
+        state.race.isEnded = !!saved.race.isEnded;
+      }
+      state.raceId = saved.raceId || null;
+      state.roster = saved.roster || [];
+      state.dqSet = new Set(saved.dq || []);
+      state.queue = (saved.queue || []).map(q => ({...q, time: new Date(q.time), assigned: !!q.assigned}));
+      state.lapsByBib = {};
+      for (const [bib, arr] of Object.entries(saved.lapsByBib || {})) {
+        state.lapsByBib[bib] = arr.map(t => new Date(t));
+      }
+      state.results = {};
+      for (const [bib, r] of Object.entries(saved.results || {})) {
+        state.results[bib] = {
+          laps: r.laps,
+          lastLap: r.lastLap,
+          avgLap: r.avgLap,
+          avgLast3: r.avgLast3,
+          avgSpeed: r.avgSpeed,
+          finished: r.finished,
+          times: (r.times || []).map(t => new Date(t))
+        };
+      }
+      if (saved.supabase) state.supabase = saved.supabase;
+    }
+
+    // ---------- Keyboard shortcuts ----------
+    document.addEventListener("keydown", (e) => {
+      const tag = (e.target && e.target.tagName) || "";
+      if (["INPUT","TEXTAREA","SELECT"].includes(tag)) return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!state.race.isRunning) $("#startRaceBtn").click();
+        else if (!state.race.isPaused) $("#pauseRaceBtn").click();
+        else $("#resumeRaceBtn").click();
+      }
+      if (e.key.toLowerCase() === "c") addCrossing();
+      if (e.key.toLowerCase() === "u") undoCrossing();
+      if (e.key.toLowerCase() === "d") {
+        const bib = prompt("Enter bib to disqualify/undisqualify:");
+        if (bib) toggleDQ(Number(bib));
+      }
+    });
+
+    // ---------- Render all ----------
+    function renderAll() {
+      $("#raceName").value = state.config.raceName || "";
+      $("#lapDistance").value = state.config.lapDistance || "";
+      $("#lapUnits").value = state.config.lapUnits || "m";
+      $("#totalLaps").value = state.config.totalLaps || "";
+      $("#teamsStatus").textContent = state.config.teamsEnabled ? "Enabled" : "Disabled";
+      $$(".teams-block").forEach(el => el.classList.toggle("hidden", !state.config.teamsEnabled));
+      $$(".teams-head").forEach(el => el.classList.toggle("hidden", !state.config.teamsEnabled));
+      renderRoster();
+      $("#crossingQueue").innerHTML = "";
+      state.queue.forEach(renderQueueItem);
+      $("#statCrossings").textContent = state.queue.length;
+      renderLeaderboard();
+      tickClock();
+    }
+
+    // ---------- Init ----------
+    renderAll();
+  </script>
+</body>
+</html>

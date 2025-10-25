@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Race Viewer — Live map and leaderboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    :root{
+      --bg:#0b0e1f; --panel:#131734; --panel-2:#1a1f44; --text:#e9eefb; --muted:#a7b0c7;
+      --border:#2a335c; --primary:#5aa2ff; --accent:#33d3a6; --warn:#ffd166; --danger:#ff6b6b;
+      --chip:#212751; --shadow:rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--text);letter-spacing:.2px}
+    header{position:sticky;top:0;z-index:100;background:linear-gradient(180deg,#131734,#1a1f44);border-bottom:1px solid var(--border);padding:14px 18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-logo{width:36px;height:36px;border-radius:10px;background:conic-gradient(from 180deg,#5aa2ff,#33d3a6,#ffd166,#ff6b6b,#5aa2ff);box-shadow:0 0 0 2px #10142a inset,0 8px 24px var(--shadow)}
+    .title{font-weight:800;font-size:18px}
+    .sub{color:var(--muted);font-size:12px}
+    main{padding:12px;display:grid;grid-template-columns: 1.1fr 1fr;gap:12px}
+    @media (max-width: 950px){ main{grid-template-columns:1fr} }
+    .panel{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 28px var(--shadow);overflow:hidden}
+    .panel-header{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(44,55,116,.20),rgba(26,31,68,.20))}
+    .panel-title{font-weight:800;font-size:14px}
+    .controls{padding:10px;background:#1a1f44;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-bottom:1px solid var(--border)}
+    input,select{padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:#121633;color:var(--text)}
+    button{background:#1b2450;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;transition:.18s;box-shadow:0 6px 18px var(--shadow)}
+    button:hover{background:#243066;transform:translateY(-1px)}
+    button.warn{background:linear-gradient(180deg,#ffd166,#e0b24e);border-color:#e0b24e;color:#1b1b1b}
+    button.ghost{background:transparent;border-color:var(--border)}
+    .chip{padding:6px 10px;border-radius:999px;background:var(--chip);color:var(--muted);border:1px solid var(--border);font-size:12px}
+    .status-finished{background:#1b4637;color:#c8f7e0}
+    .status-dq{background:#3b1620;color:#ffe9e9}
+    table{width:100%;border-collapse:collapse}
+    thead th{background:#1a2044;position:sticky;top:0;z-index:2}
+    th,td{border-bottom:1px solid var(--border);padding:10px;text-align:center}
+    tr:hover td{background:rgba(255,255,255,.03)}
+    #map{height:62vh;width:100%}
+    .error{background:#3b1620;border:1px solid #5b2432;color:#ffe9e9;padding:10px;border-radius:10px;margin:8px 12px}
+    .footer{padding:10px;text-align:center;color:var(--muted)}
+    .drawer{position:fixed;right:0;top:0;height:100%;width:360px;max-width:90vw;background:#10142a;border-left:1px solid var(--border);box-shadow:-6px 0 18px var(--shadow);transform:translateX(100%);transition:transform .25s ease;z-index:150}
+    .drawer.open{transform:translateX(0)}
+    .drawer-header{padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .drawer-body{padding:12px;overflow:auto;height:calc(100% - 48px)}
+    .metric{display:grid;grid-template-columns:1fr auto;gap:6px;padding:6px 0;border-bottom:1px dotted var(--border)}
+    .row-dim{font-size:12px;color:var(--muted)}
+    .legend{display:flex;gap:8px;flex-wrap:wrap}
+    .select-box{min-width:160px;max-width:260px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true"></div>
+      <div class="title" id="raceTitle">Race Viewer — Live Map & Leaderboard</div>
+    </div>
+    <div class="sub" id="raceSub">Connecting…</div>
+  </header>
+
+  <main>
+    <!-- Leaderboard -->
+    <section class="panel" aria-label="Leaderboard">
+      <div class="panel-header">
+        <div class="panel-title">Leaderboard</div>
+        <div class="legend">
+          <span class="chip status-finished">Finished</span>
+          <span class="chip status-dq">DQ</span>
+        </div>
+      </div>
+      <div class="controls">
+        <input id="searchInput" type="text" placeholder="Search bib or name" aria-label="Search" />
+        <select id="teamFilter" aria-label="Team filter" class="select-box">
+          <option value="">All teams</option>
+        </select>
+        <select id="sortBy" aria-label="Sort by">
+          <option value="rank">Rank</option>
+          <option value="laps">Laps</option>
+          <option value="avgSpeed">Avg speed</option>
+          <option value="lastLap">Last lap</option>
+          <option value="avgLap">Avg lap</option>
+          <option value="avgLast3">Avg last 3</option>
+        </select>
+        <label class="chip"><input type="checkbox" id="showFinished" checked /> Show finished</label>
+        <label class="chip"><input type="checkbox" id="showDQ" checked /> Show DQ</label>
+        <button class="ghost" id="refreshBtn">Refresh now</button>
+        <button class="warn" id="toggleAuto">Pause auto-refresh</button>
+      </div>
+      <div id="banner" class="error hidden" role="status"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Pos</th><th>Bib</th><th>Name</th><th>Team</th>
+            <th>Laps</th><th>Last lap (s)</th><th>Avg lap (s)</th><th>Avg last 3 (s)</th>
+            <th>Avg speed (km/h)</th><th>Status</th><th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardBody"></tbody>
+      </table>
+      <div class="footer" id="countFooter">—</div>
+    </section>
+
+    <!-- Map -->
+    <section class="panel" aria-label="Map">
+      <div class="panel-header">
+        <div class="panel-title">Course and live positions</div>
+        <div class="legend">
+          <span class="chip">Select runners to show on map</span>
+        </div>
+      </div>
+      <div class="controls">
+        <select id="runnerSelect" multiple size="6" class="select-box" aria-label="Runner selection"></select>
+        <button id="showAll">Show all on map</button>
+        <button id="clearAll">Clear map selection</button>
+      </div>
+      <div id="map"></div>
+      <div class="footer">Map updates with leaderboard refresh</div>
+    </section>
+  </main>
+
+  <!-- Runner details drawer -->
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <div class="drawer-header">
+      <div>
+        <div id="drawerTitle" class="title" style="font-size:16px;">Runner details</div>
+        <div id="drawerSub" class="sub">—</div>
+      </div>
+      <button class="ghost" id="closeDrawer">Close</button>
+    </div>
+    <div class="drawer-body">
+      <div class="panel-title">Metrics</div>
+      <div id="metrics"></div>
+
+      <div class="panel-title" style="margin-top:10px;">Lap history</div>
+      <table>
+        <thead><tr><th>#</th><th>Crossing time</th><th>Lap time (s)</th></tr></thead>
+        <tbody id="lapsBody"></tbody>
+      </table>
+
+      <div class="panel-title" style="margin-top:10px;">Location (latest)</div>
+      <div id="locationMeta" class="row-dim">—</div>
+    </div>
+  </aside>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // ---------------- Hash parsing ----------------
+    // Required: #1=url|2=key|3=runner_state|4=race-id
+    const hash = location.hash.slice(1);
+    if (!hash) {
+      document.body.innerHTML = "<main style='padding:20px'><div class='error'>Incorrect code — no race link provided.</div></main>";
+      throw new Error("No hash provided");
+    }
+    const parts = Object.fromEntries(hash.split("|").map(p => {
+      const [k,v] = p.split("="); return [k, v ? decodeURIComponent(v) : ""];
+    }));
+    const SB_URL = parts["1"];
+    const SB_KEY = parts["2"];
+    const TABLE_STATE = parts["3"] || "runner_state";
+    const RACE_ID = parts["4"];
+    const TABLE_EVENTS = "race_events";
+
+    if (!SB_URL || !SB_KEY || !RACE_ID) {
+      document.body.innerHTML = "<main style='padding:20px'><div class='error'>Incorrect code — Supabase URL, key, or race ID missing.</div></main>";
+      throw new Error("Invalid hash parameters");
+    }
+    document.getElementById("raceTitle").textContent = "Race Viewer — " + RACE_ID;
+
+    // ---------------- Helpers ----------------
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const sleep = ms => new Promise(res => setTimeout(res, ms));
+    function sbHeaders() { return { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" }; }
+    function kmhToPaceMinPerKm(kmh){
+      if (!kmh || kmh <= 0) return null;
+      const minPerKm = 60 / kmh;
+      const m = Math.floor(minPerKm);
+      const s = Math.round((minPerKm - m) * 60);
+      return `${m}:${String(s).padStart(2,"0")} min/km`;
+    }
+    function setBanner(msg){
+      const b = $("#banner");
+      b.classList.remove("hidden");
+      b.textContent = msg;
+      setTimeout(()=> b.classList.add("hidden"), 3500);
+    }
+
+    // ---------------- Map setup ----------------
+    const map = L.map('map').setView([43.2, -71.5], 13); // default center (Bow, NH)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Optional: course polyline — replace with your coordinates
+    const courseCoords = [
+      [43.2050,-71.5150],[43.2100,-71.5050],[43.2200,-71.4950],[43.2300,-71.4850]
+    ];
+    L.polyline(courseCoords,{color:'#5aa2ff',weight:4}).addTo(map);
+
+    const markers = new Map(); // bib -> Leaflet marker
+
+    // ---------------- State ----------------
+    let autoRefresh = true;
+    const pollMs = 3000;
+    let lastRows = [];
+    let teamSet = new Set();
+
+    // ---------------- Fetch leaderboard ----------------
+    async function fetchLeaderboard() {
+      try {
+        const params = new URLSearchParams({
+          select: "*",
+          race_id: `eq.${RACE_ID}`
+        });
+        const res = await fetch(`${SB_URL}/rest/v1/${TABLE_STATE}?${params}`, { headers: sbHeaders() });
+        if (!res.ok) throw new Error("Supabase fetch failed " + res.status);
+        const rows = await res.json();
+        lastRows = rows;
+        renderLeaderboard(rows);
+        renderRunnerSelect(rows);
+        renderMap(rows);
+        $("#raceSub").textContent = `Connected • Auto-refresh: ${autoRefresh ? (pollMs/1000)+'s' : 'paused'}`;
+      } catch (e) {
+        console.error(e);
+        setBanner("Failed to refresh leaderboard. Retrying…");
+      }
+    }
+
+    // ---------------- Filters and sorting ----------------
+    function applyFilters(rows){
+      const q = $("#searchInput").value.trim().toLowerCase();
+      const team = $("#teamFilter").value;
+      const showFinished = $("#showFinished").checked;
+      const showDQ = $("#showDQ").checked;
+
+      return rows.filter(r => {
+        const matchesSearch = !q || (String(r.bib_number).includes(q) || (r.name||"").toLowerCase().includes(q));
+        const matchesTeam = !team || (r.team === team);
+        const matchesFinished = showFinished || !r.finished;
+        const matchesDQ = showDQ || !r.dq;
+        return matchesSearch && matchesTeam && matchesFinished && matchesDQ;
+      });
+    }
+
+    function sortRows(rows){
+      const by = $("#sortBy").value;
+      const tie = (a,b) => {
+        const ta = a.last_crossing ? new Date(a.last_crossing).getTime() : 0;
+        const tb = b.last_crossing ? new Date(b.last_crossing).getTime() : 0;
+        return ta - tb;
+      };
+      const copy = rows.slice();
+      if (by === "rank"){
+        copy.sort((a,b) => {
+          if (!!a.dq !== !!b.dq) return a.dq ? 1 : -1;
+          if ((b.current_lap||0) !== (a.current_lap||0)) return (b.current_lap||0) - (a.current_lap||0);
+          if ((b.avg_speed_kmh||0) !== (a.avg_speed_kmh||0)) return (b.avg_speed_kmh||0) - (a.avg_speed_kmh||0);
+          return tie(a,b);
+        });
+      } else if (by === "laps"){
+        copy.sort((a,b) => (b.current_lap||0) - (a.current_lap||0) || tie(a,b));
+      } else if (by === "avgSpeed"){
+        copy.sort((a,b) => (b.avg_speed_kmh||0) - (a.avg_speed_kmh||0) || tie(a,b));
+      } else if (by === "lastLap"){
+        copy.sort((a,b) => (a.last_lap_sec??Infinity) - (b.last_lap_sec??Infinity) || tie(a,b));
+      } else if (by === "avgLap"){
+        copy.sort((a,b) => (a.avg_lap_sec??Infinity) - (b.avg_lap_sec??Infinity) || tie(a,b));
+      } else if (by === "avgLast3"){
+        copy.sort((a,b) => (a.avg_last3_lap_sec??Infinity) - (b.avg_last3_lap_sec??Infinity) || tie(a,b));
+      }
+      return copy;
+    }
+
+    // ---------------- Render leaderboard ----------------
+    function renderLeaderboard(rows){
+      // Team filter
+      teamSet = new Set(rows.map(r => r.team).filter(Boolean));
+      const tf = $("#teamFilter");
+      const prev = tf.value;
+      tf.innerHTML = `<option value="">All teams</option>` + Array.from(teamSet).sort().map(t => `<option value="${t}">${t}</option>`).join("");
+      tf.value = prev;
+
+      const filtered = applyFilters(rows);
+      const sorted = sortRows(filtered);
+
+      const tbody = $("#leaderboardBody");
+      tbody.innerHTML = "";
+
+      let pos = 0;
+      sorted.forEach(r => {
+        const dq = !!r.dq;
+        const finished = !!r.finished;
+        const rank = dq ? "-" : (++pos);
+        const pace = kmhToPaceMinPerKm(r.avg_speed_kmh);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${rank}</td>
+          <td>${r.bib_number}</td>
+          <td>${r.name || ""}</td>
+          <td>${r.team || ""}</td>
+          <td>${r.current_lap ?? 0}</td>
+          <td>${r.last_lap_sec ? Number(r.last_lap_sec).toFixed(1) : "-"}</td>
+          <td>${r.avg_lap_sec ? Number(r.avg_lap_sec).toFixed(1) : "-"}</td>
+          <td>${r.avg_last3_lap_sec ? Number(r.avg_last3_lap_sec).toFixed(1) : "-"}</td>
+          <td>
+            ${r.avg_speed_kmh ? Number(r.avg_speed_kmh).toFixed(2) : "0.00"}
+            <div class="row-dim">${pace || ""}</div>
+          </td>
+          <td>
+            ${finished ? '<span class="chip status-finished">Finished</span>' : ''}
+            ${dq ? '<span class="chip status-dq">DQ</span>' : ''}
+          </td>
+          <td><button class="ghost" data-bib="${r.bib_number}" data-name="${r.name||""}" data-team="${r.team||""}">View</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      $("#countFooter").textContent = `${sorted.length} runners shown • ${rows.length} total`;
+
+      // Hook detail buttons
+      $$('button[data-bib]').forEach(btn => btn.addEventListener('click', () => openDrawer(btn.dataset)));
+    }
+
+    // ---------------- Render runner select (map filter) ----------------
+    function renderRunnerSelect(rows){
+      const select = $("#runnerSelect");
+      if (select.dataset.init === "1") return; // populate once
+      rows.forEach(r => {
+        const opt = document.createElement("option");
+        opt.value = String(r.bib_number);
+        opt.textContent = `#${r.bib_number} ${r.name || ""}`;
+        select.appendChild(opt);
+      });
+      select.dataset.init = "1";
+    }
+
+    // ---------------- Render map markers ----------------
+    function renderMap(rows){
+      const selected = Array.from($("#runnerSelect").selectedOptions).map(o => Number(o.value));
+      rows.forEach(r => {
+        if (!r.lat || !r.lon) return;
+        const show = selected.length === 0 || selected.includes(r.bib_number);
+        let m = markers.get(r.bib_number);
+        const label = `#${r.bib_number} ${r.name || ""}`;
+        if (!m) {
+          m = L.marker([r.lat, r.lon]).addTo(map).bindPopup(label);
+          markers.set(r.bib_number, m);
+        }
+        m.setLatLng([r.lat, r.lon]);
+        m.getPopup()?.setContent(label);
+        if (show) {
+          if (!map.hasLayer(m)) m.addTo(map);
+        } else {
+          if (map.hasLayer(m)) map.removeLayer(m);
+        }
+      });
+    }
+
+    // ---------------- Runner details drawer ----------------
+    async function fetchRunnerEvents(bib){
+      try{
+        const params = new URLSearchParams({
+          select: "*",
+          race_id: `eq.${RACE_ID}`,
+          bib_number: `eq.${bib}`,
+          order: "created_at.asc"
+        });
+        const res = await fetch(`${SB_URL}/rest/v1/${TABLE_EVENTS}?${params}`, { headers: sbHeaders() });
+        if(!res.ok) throw new Error("Event fetch failed " + res.status);
+        return await res.json();
+      }catch(e){
+        console.error(e);
+        setBanner("Failed to load runner history.");
+        return [];
+      }
+    }
+
+    async function openDrawer({ bib, name, team }){
+      const drawer = $("#drawer");
+      const title = $("#drawerTitle");
+      const sub = $("#drawerSub");
+      const metricsBox = $("#metrics");
+      const lapsBody = $("#lapsBody");
+      const locMeta = $("#locationMeta");
+
+      title.textContent = `#${bib} ${name||""}`;
+      sub.textContent = team ? `Team: ${team}` : "—";
+
+      // Fetch snapshot
+      let snap = null;
+      try{
+        const params = new URLSearchParams({
+          select: "*",
+          race_id: `eq.${RACE_ID}`,
+          bib_number: `eq.${bib}`
+        });
+        const res = await fetch(`${SB_URL}/rest/v1/${TABLE_STATE}?${params}`, { headers: sbHeaders() });
+        if(res.ok){
+          const rows = await res.json();
+          snap = rows[0] || null;
+        }
+      }catch(e){ /* ignore */ }
+
+      const metrics = [
+        { label: "Current lap", value: snap?.current_lap ?? "—" },
+        { label: "Last lap", value: snap?.last_lap_sec ? Number(snap.last_lap_sec).toFixed(1) + " s" : "—" },
+        { label: "Avg lap", value: snap?.avg_lap_sec ? Number(snap.avg_lap_sec).toFixed(1) + " s" : "—" },
+        { label: "Avg last 3", value: snap?.avg_last3_lap_sec ? Number(snap.avg_last3_lap_sec).toFixed(1) + " s" : "—" },
+        { label: "Avg speed", value: snap?.avg_speed_kmh ? Number(snap.avg_speed_kmh).toFixed(2) + " km/h" : "—" },
+        { label: "Pace", value: snap?.avg_speed_kmh ? kmhToPaceMinPerKm(Number(snap.avg_speed_kmh)) : "—" },
+        { label: "Finished", value: snap?.finished ? "Yes" : "No" },
+        { label: "DQ", value: snap?.dq ? "Yes" : "No" }
+      ];
+      metricsBox.innerHTML = metrics.map(m => `<div class="metric"><span>${m.label}</span><span>${m.value}</span></div>`).join("");
+
+      if (snap?.lat && snap?.lon) {
+        locMeta.textContent = `Latest: ${snap.lat.toFixed(5)}, ${snap.lon.toFixed(5)}${snap.accuracy ? ` (±${snap.accuracy}m)` : ""}`;
+      } else {
+        locMeta.textContent = "No location shared yet.";
+      }
+
+      const events = await fetchRunnerEvents(bib);
+      const laps = events.filter(e => e.event_type === "lap").map((e,i,arr) => {
+        const prevCross = arr[i-1]?.crossing_time ? new Date(arr[i-1].crossing_time) : null;
+        const nowCross = e.crossing_time ? new Date(e.crossing_time) : null;
+        const lapSec = prevCross && nowCross ? ((nowCross - prevCross)/1000) : (e.lap_time_sec ?? null);
+        return { i: i+1, crossing: e.crossing_time, lapSec };
+      });
+      lapsBody.innerHTML = laps.length
+        ? laps.map(l => `<tr><td>${l.i}</td><td>${l.crossing ? new Date(l.crossing).toLocaleString() : "—"}</td><td>${l.lapSec ? Number(l.lapSec).toFixed(1) : "—"}</td></tr>`).join("")
+        : `<tr><td colspan="3" class="row-dim">No laps logged yet.</td></tr>`;
+
+      drawer.classList.add("open");
+      drawer.setAttribute("aria-hidden","false");
+    }
+    $("#closeDrawer").addEventListener("click", () => {
+      const drawer = $("#drawer");
+      drawer.classList.remove("open");
+      drawer.setAttribute("aria-hidden","true");
+    });
+
+    // ---------------- Controls ----------------
+    $("#refreshBtn").addEventListener("click", fetchLeaderboard);
+    $("#toggleAuto").addEventListener("click", () => {
+      autoRefresh = !autoRefresh;
+      $("#toggleAuto").textContent = autoRefresh ? "Pause auto-refresh" : "Resume auto-refresh";
+      $("#raceSub").textContent = `Connected • Auto-refresh: ${autoRefresh ? (pollMs/1000)+"s" : "paused"}`;
+    });
+    ["searchInput","teamFilter","sortBy","showFinished","showDQ"].forEach(id => {
+      $( "#" + id ).addEventListener("input", fetchLeaderboard);
+      $( "#" + id ).addEventListener("change", fetchLeaderboard);
+    });
+    $("#runnerSelect").addEventListener("change", () => renderMap(lastRows));
+    $("#showAll").addEventListener("click", () => {
+      const select = $("#runnerSelect");
+      Array.from(select.options).forEach(o => o.selected = true);
+      renderMap(lastRows);
+    });
+    $("#clearAll").addEventListener("click", () => {
+      const select = $("#runnerSelect");
+      Array.from(select.options).forEach(o => o.selected = false);
+      renderMap(lastRows);
+    });
+
+    // Keyboard niceties
+    $("#searchInput").addEventListener("keydown", (e) => { if(e.key === "Enter") fetchLeaderboard(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const drawer = $("#drawer");
+        if (drawer.classList.contains("open")) $("#closeDrawer").click();
+      }
+    });
+
+    // ---------------- Poll loop ----------------
+    async function pollLoop(){
+      while(true){
+        if(autoRefresh) await fetchLeaderboard();
+        await sleep(pollMs);
+      }
+    }
+    fetchLeaderboard();
+    pollLoop();
+  </script>
+</body>
+</html>
